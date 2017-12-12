@@ -10,33 +10,42 @@
 #include <DallasTemperature.h>
 #include <Servo.h>
 
-
-OneWire oneWire(5);
-DallasTemperature sensors(&oneWire);
-
-
-// LCD /////////////////////////////////////////
-Adafruit_LiquidCrystal lcd(0);
+#define TEMPERATURE_PIN 5
+#define LCD_ADDRESS 0
+#define SERVO_VALVE_PIN 10
 
 // Encoder /////////////////////////////////////
 #define encA 2
 #define encB 3
-//this encoder has a button here
 #define encBtn 4
-
-encoderIn<encA,encB> encoder;//simple quad encoder driver
 #define ENC_SENSIVITY 4
+
+OneWire oneWire(TEMPERATURE_PIN);
+DallasTemperature sensors(&oneWire);
+Servo valve;
+
+// LCD /////////////////////////////////////////
+Adafruit_LiquidCrystal lcd(LCD_ADDRESS);
+
+// Encoder /////////////////////////////////////
+encoderIn<encA,encB> encoder;//simple quad encoder driver
 encoderInStream<encA,encB> encStream(encoder,ENC_SENSIVITY);// simple quad encoder fake Stream
 
 //a keyboard with only one key as the encoder button
 keyMap encBtn_map[]={{-encBtn,options->getCmdChar(enterCmd)}};//negative pin numbers use internal pull-up, this is on when low
 keyIn<1> encButton(encBtn_map);//1 is the number of keys
 
-//input from the encoder + encoder button + serial
+//input from the encoder + encoder button
 menuIn* inputsList[]={&encStream,&encButton};
 chainStream<2> in(inputsList);//3 is the number of inputs
 
+// Global variables
+
 int tempSet = 30;
+float currentTemp;
+bool valveOpened = true;
+
+// MENU ///////////////////////////////////////
 
 MENU(mainMenu,"Main menu",doNothing,noEvent,wrapStyle
     ,FIELD(tempSet,"Set Temp","C",30,60,5,1,doNothing,noEvent,wrapStyle)
@@ -52,30 +61,61 @@ MENU_OUTPUTS(out, MAX_DEPTH
 
 NAVROOT(nav,mainMenu,1,in,out);//the navigation root object
 
-float tempRead()
-{
+// END MENU /////////////////////////////////////
+
+void tempRead() {
     sensors.requestTemperatures();
-    return sensors.getTempCByIndex(0);
+    currentTemp = sensors.getTempCByIndex(0);
+}
+
+void openValve() {
+    if (valveOpened == false) {
+        Serial.println("Open");
+        valve.write(90);
+        valveOpened = true;
+    }
+}
+
+void closeValve() {
+    if (valveOpened == true) {
+        Serial.println("Close");
+        valve.write(0);
+        valveOpened = false;
+    }
 }
 
 void displayHome() {
     lcd.setCursor(0, 0);
     lcd.print("T: ");
-    lcd.print(tempRead());
+    lcd.print(currentTemp);
     lcd.print(" of ");
     lcd.print(tempSet);
 }
 
+void handleTempControl() {
+    if (tempSet - currentTemp < -1) {
+        openValve();
+    }
+    else if (tempSet - currentTemp > 1) {
+        closeValve();
+    }
+}
+
 void setup() {
-  pinMode(encBtn,INPUT_PULLUP);
-  encoder.begin();
-  lcd.begin(16,2);
-  nav.showTitle=false;
-  nav.idleOn();
+    Serial.begin(9600);
+    pinMode(encBtn,INPUT_PULLUP);
+    encoder.begin();
+    lcd.begin(16,2);
+    nav.showTitle=false;
+    nav.idleOn();
+    valve.attach(SERVO_VALVE_PIN);
+    closeValve();
 }
 
 void loop() {
     nav.poll();
+    tempRead();
+    handleTempControl();
 
     if (nav.sleepTask) {
         displayHome();
