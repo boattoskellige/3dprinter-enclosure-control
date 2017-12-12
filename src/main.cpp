@@ -70,17 +70,29 @@ void tempRead() {
 
 void openValve() {
     if (valveOpened == false) {
+        valve.attach(SERVO_VALVE_PIN);
+        delay(100);
+
         Serial.println("Open");
         valve.write(90);
         valveOpened = true;
+
+        delay(1500);
+        valve.detach();
     }
 }
 
 void closeValve() {
     if (valveOpened == true) {
+        valve.attach(SERVO_VALVE_PIN);
+        delay(100);
+
         Serial.println("Close");
         valve.write(0);
         valveOpened = false;
+
+        delay(1500);
+        valve.detach();
     }
 }
 
@@ -108,7 +120,6 @@ void setup() {
     lcd.begin(16,2);
     nav.showTitle=false;
     nav.idleOn();
-    valve.attach(SERVO_VALVE_PIN);
     closeValve();
 }
 
