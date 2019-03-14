@@ -47,7 +47,7 @@ bool valveOpened = true;
 
 // MENU ///////////////////////////////////////
 
-MENU(mainMenu,"Main menu",doNothing,noEvent,wrapStyle
+MENU(mainMenu,"Home",doNothing,noEvent,wrapStyle
     ,FIELD(tempSet,"Set Temp","C",30,60,5,1,doNothing,noEvent,wrapStyle)
     ,EXIT("Exit")
 );
